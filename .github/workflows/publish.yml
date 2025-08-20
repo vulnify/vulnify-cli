@@ -69,15 +69,29 @@ jobs:
         
     - name: Update package.json version
       run: |
-        npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+        VERSION=${{ steps.get_version.outputs.VERSION }}
+        echo "Updating package.json to version: $VERSION"
+        node -e "
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.version = '$VERSION';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          console.log('✅ Updated package.json version to', pkg.version);
+        "
         
     - name: Verify package contents
       run: |
         echo "📦 Package contents:"
         npm pack --dry-run
+        echo ""
+        echo "📋 Package.json version:"
+        node -e "console.log('Version:', JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version)"
         
     - name: Publish to NPM
-      run: npm publish --access public
+      run: |
+        echo "🚀 Publishing to NPM..."
+        npm publish --access public
+        echo "✅ Successfully published to NPM!"
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         
@@ -114,10 +128,16 @@ jobs:
     if: always()
     
     steps:
+    - name: Get version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        
     - name: Notify Success
       if: needs.publish.result == 'success'
       run: |
-        echo "🎉 Successfully published vulnify@${{ needs.publish.outputs.VERSION }} to NPM!"
+        echo "🎉 Successfully published vulnify@${{ steps.get_version.outputs.VERSION }} to NPM!"
         echo "Users can now install with: npm install -g vulnify"
         
     - name: Notify Failure
