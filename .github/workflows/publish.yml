@@ -1,0 +1,129 @@
+name: Build and Publish to NPM
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting
+      run: npm run lint || echo "Linting not configured, skipping..."
+      
+    - name: Build TypeScript
+      run: npm run build
+      
+    - name: Test CLI commands
+      run: |
+        node dist/cli.js --version
+        node dist/cli.js help > /dev/null
+        echo "✅ CLI commands working"
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project
+      run: npm run build
+      
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Publishing version: $VERSION"
+        
+    - name: Update package.json version
+      run: |
+        npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+        
+    - name: Verify package contents
+      run: |
+        echo "📦 Package contents:"
+        npm pack --dry-run
+        
+    - name: Publish to NPM
+      run: npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## 🚀 Vulnify CLI v${{ steps.get_version.outputs.VERSION }}
+          
+          ### Installation
+          ```bash
+          npm install -g vulnify
+          ```
+          
+          ### Usage
+          ```bash
+          vulnify test
+          vulnify help
+          ```
+          
+          ### Changes
+          - See commit history for detailed changes
+          
+        draft: false
+        prerelease: false
+
+  notify:
+    needs: [test, publish]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify Success
+      if: needs.publish.result == 'success'
+      run: |
+        echo "🎉 Successfully published vulnify@${{ needs.publish.outputs.VERSION }} to NPM!"
+        echo "Users can now install with: npm install -g vulnify"
+        
+    - name: Notify Failure
+      if: needs.publish.result == 'failure'
+      run: |
+        echo "❌ Failed to publish to NPM"
+        echo "Check the logs above for details"
+        exit 1
+

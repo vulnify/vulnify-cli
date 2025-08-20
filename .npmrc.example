@@ -1,0 +1,18 @@
+# NPM Configuration Example
+# Copy this file to .npmrc and configure as needed
+
+# NPM Registry (default)
+registry=https://registry.npmjs.org/
+
+# Authentication token (get from npm.com)
+# //registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Publishing configuration
+access=public
+
+# Optional: Set email and name
+# email=your-email@example.com
+# init-author-name=Your Name
+# init-author-email=your-email@example.com
+# init-license=MIT
+

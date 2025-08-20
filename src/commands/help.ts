@@ -1,0 +1,61 @@
+import { Command } from 'commander';
+import { colors } from '../utils/colors';
+
+export const helpCommand = new Command('help')
+  .description('Display help information')
+  .action(() => {
+    console.log(colors.title('Vulnify CLI - Vulnerability Analysis Tool'));
+    console.log('');
+    console.log(colors.subtitle('USAGE:'));
+    console.log('  vulnify <command> [options]');
+    console.log('');
+    console.log(colors.subtitle('COMMANDS:'));
+    console.log('  test      Analyze project dependencies for vulnerabilities');
+    console.log('  help      Display this help information');
+    console.log('  info      Show API information and status');
+    console.log('  --version Show version number');
+    console.log('');
+    console.log(colors.subtitle('TEST COMMAND OPTIONS:'));
+    console.log('  --file <path>        Specify dependency file to analyze');
+    console.log('  --ecosystem <type>   Force ecosystem detection (npm, pypi, maven, etc.)');
+    console.log('  --output <format>    Output format: json, table, summary (default: table)');
+    console.log('  --severity <level>   Filter by severity: critical, high, medium, low');
+    console.log('  --api-key <key>      API key for increased rate limits');
+    console.log('  --timeout <ms>       Request timeout in milliseconds (default: 30000)');
+    console.log('  --no-report          Skip generating report.json file');
+    console.log('');
+    console.log(colors.subtitle('SUPPORTED ECOSYSTEMS:'));
+    console.log('  npm       Node.js packages (package.json)');
+    console.log('  pypi      Python packages (requirements.txt, Pipfile, pyproject.toml)');
+    console.log('  maven     Java packages (pom.xml, build.gradle)');
+    console.log('  nuget     .NET packages (*.csproj, packages.config)');
+    console.log('  rubygems  Ruby packages (Gemfile)');
+    console.log('  composer  PHP packages (composer.json)');
+    console.log('  go        Go packages (go.mod)');
+    console.log('  cargo     Rust packages (Cargo.toml)');
+    console.log('');
+    console.log(colors.subtitle('EXAMPLES:'));
+    console.log('  vulnify test                           # Analyze current project');
+    console.log('  vulnify test --file requirements.txt   # Analyze Python requirements');
+    console.log('  vulnify test --ecosystem npm           # Force npm ecosystem');
+    console.log('  vulnify test --output json             # JSON output format');
+    console.log('  vulnify test --severity high           # Show only high+ severity');
+    console.log('');
+    console.log(colors.subtitle('CONFIGURATION:'));
+    console.log('  Create .vulnifyrc file in project or home directory:');
+    console.log('  {');
+    console.log('    "api_key": "your-api-key",');
+    console.log('    "api_url": "https://api-dev.vulnify.io/api/v1",');
+    console.log('    "timeout": 30000,');
+    console.log('    "output_format": "table"');
+    console.log('  }');
+    console.log('');
+    console.log(colors.subtitle('ENVIRONMENT VARIABLES:'));
+    console.log('  VULNIFY_API_KEY    API key for authentication');
+    console.log('  VULNIFY_API_URL    Custom API endpoint URL');
+    console.log('  VULNIFY_TIMEOUT    Default timeout in milliseconds');
+    console.log('  VULNIFY_OUTPUT     Default output format');
+    console.log('');
+    console.log(colors.muted('For more information, visit: https://docs.vulnify.io'));
+  });
+
