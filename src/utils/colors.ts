@@ -25,7 +25,7 @@ export const colors = {
   underline: chalk.underline
 };
 
-export function getSeverityColor(severity: string): typeof chalk {
+export function getSeverityColor(severity: string) {
   switch (severity.toLowerCase()) {
     case 'critical':
       return colors.critical;

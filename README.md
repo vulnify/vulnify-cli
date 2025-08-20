@@ -13,13 +13,22 @@ Uma ferramenta de linha de comando para análise de vulnerabilidades em dependê
 
 ## Instalação
 
-### Pré-requisitos
-- Node.js >= 14.0.0
-- npm ou yarn
-
-### Instalação Local
+### Instalação Global via NPM (Recomendado)
 ```bash
-# Clone ou extraia o projeto
+npm install -g vulnify
+```
+
+Após a instalação, o comando `vulnify` estará disponível globalmente:
+```bash
+vulnify --version
+vulnify help
+vulnify test
+```
+
+### Instalação Local para Desenvolvimento
+```bash
+# Clone o repositório
+git clone https://github.com/vulnify/vulnify-cli.git
 cd vulnify-cli
 
 # Instale as dependências
@@ -32,14 +41,9 @@ npm run build
 node dist/cli.js --help
 ```
 
-### Instalação Global (Opcional)
-```bash
-# Instale globalmente
-npm install -g .
-
-# Use o comando vulnify diretamente
-vulnify --help
-```
+### Pré-requisitos
+- Node.js >= 14.0.0
+- npm ou yarn
 
 ## Uso
 
