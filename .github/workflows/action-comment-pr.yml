@@ -1,0 +1,74 @@
+name: Vulnify Security Scan
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      VULNIFY_FAIL_ON: any
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+      - run: npm install --no-fund --no-audit vulnify
+
+      - id: runscan
+        run: |
+          npx vulnify test --output json || true
+          if [ ! -f vulnify-report.json ]; then
+            echo '{"summary":{"critical":0,"high":0,"medium":0,"low":0}}' > vulnify-report.json
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vulnify-report
+          path: vulnify-report.json
+
+      - if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'vulnify-report.json';
+            let summary = {critical:0,high:0,medium:0,low:0};
+            if (fs.existsSync(path)) {
+              const report = JSON.parse(fs.readFileSync(path,'utf8'));
+              summary = report.results?.summary || report.summary || summary;
+            }
+            const total = (summary.critical||0)+(summary.high||0)+(summary.medium||0)+(summary.low||0);
+            const body = `## 🛡️ Vulnify Scan
+            |Severity|Count|
+            |--------|-----|
+            |🔴 Critical|${summary.critical||0}|
+            |🟠 High|${summary.high||0}|
+            |🟡 Medium|${summary.medium||0}|
+            |🟢 Low|${summary.low||0}|
+            **Total:** ${total}`;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+      - run: |
+          crit=$(jq -r '.summary.critical // .results.summary.critical // 0' vulnify-report.json)
+          high=$(jq -r '.summary.high // .results.summary.high // 0' vulnify-report.json)
+          med=$(jq -r '.summary.medium // .results.summary.medium // 0' vulnify-report.json)
+          low=$(jq -r '.summary.low // .results.summary.low // 0' vulnify-report.json)
+          total=$((crit+high+med+low))
+          if [ "$VULNIFY_FAIL_ON" = "high" ]; then
+            if [ $((crit+high)) -gt 0 ]; then exit 1; fi
+          else
+            if [ "$total" -gt 0 ]; then exit 1; fi
+          fi
