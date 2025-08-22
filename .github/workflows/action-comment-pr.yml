@@ -1,4 +1,5 @@
-name: Vulnify Security Scan
+# .github/workflows/vulnify-scan.yml (no repo da CLI)
+name: Vulnify Scan
 
 on:
   workflow_call:
@@ -7,27 +8,28 @@ on:
         required: false
         default: any
         type: string
-  pull_request:
-  push:
-    branches: [ main, master ]
+    secrets:
+      VULNIFY_API_KEY:
+        required: false
 
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     env:
-      VULNIFY_FAIL_ON: any
+      VULNIFY_FAIL_ON: ${{ inputs.fail_on }}
+      # VULNIFY_API_KEY estará disponível se o chamador passar (secrets: inherit)
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - run: npm install --no-fund --no-audit vulnify
 
       - id: runscan
@@ -36,6 +38,7 @@ jobs:
           if [ ! -f vulnify-report.json ]; then
             echo '{"summary":{"critical":0,"high":0,"medium":0,"low":0}}' > vulnify-report.json
           fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: vulnify-report
@@ -46,35 +49,38 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const path = 'vulnify-report.json';
-            let summary = {critical:0,high:0,medium:0,low:0};
-            if (fs.existsSync(path)) {
-              const report = JSON.parse(fs.readFileSync(path,'utf8'));
-              summary = report.results?.summary || report.summary || summary;
+            const p = 'vulnify-report.json';
+            let s = {critical:0,high:0,medium:0,low:0};
+            if (fs.existsSync(p)) {
+              const r = JSON.parse(fs.readFileSync(p,'utf8'));
+              s = r.results?.summary || r.summary || s;
             }
-            const total = (summary.critical||0)+(summary.high||0)+(summary.medium||0)+(summary.low||0);
-            const body = `## 🛡️ Vulnify Scan
+            const total = (s.critical||0)+(s.high||0)+(s.medium||0)+(s.low||0);
+            const body =
+            `## 🛡️ Vulnify Scan
             |Severity|Count|
             |--------|-----|
-            |🔴 Critical|${summary.critical||0}|
-            |🟠 High|${summary.high||0}|
-            |🟡 Medium|${summary.medium||0}|
-            |🟢 Low|${summary.low||0}|
+            |🔴 Critical|${s.critical||0}|
+            |🟠 High|${s.high||0}|
+            |🟡 Medium|${s.medium||0}|
+            |🟢 Low|${s.low||0}|
             **Total:** ${total}`;
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body
             });
-      - run: |
+
+      - name: Fail on policy
+        run: |
           crit=$(jq -r '.summary.critical // .results.summary.critical // 0' vulnify-report.json)
           high=$(jq -r '.summary.high // .results.summary.high // 0' vulnify-report.json)
           med=$(jq -r '.summary.medium // .results.summary.medium // 0' vulnify-report.json)
           low=$(jq -r '.summary.low // .results.summary.low // 0' vulnify-report.json)
           total=$((crit+high+med+low))
-          if [ "$VULNIFY_FAIL_ON" = "high" ]; then
-            if [ $((crit+high)) -gt 0 ]; then exit 1; fi
+          if [ "${{ inputs.fail_on }}" = "high" ]; then
+            [ $((crit+high)) -gt 0 ] && exit 1 || exit 0
           else
-            if [ "$total" -gt 0 ]; then exit 1; fi
+            [ "$total" -gt 0 ] && exit 1 || exit 0
           fi
