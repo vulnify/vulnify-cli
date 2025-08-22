@@ -1,0 +1,261 @@
+name: Test Vulnify Action
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    name: Test Vulnify Security Scanner Action
+    
+    strategy:
+      matrix:
+        test-case:
+          - name: "Basic npm scan"
+            ecosystem: "npm"
+            file: "package.json"
+            fail-on: "critical"
+          - name: "Python requirements scan"
+            ecosystem: "pypi"
+            file: "requirements.txt"
+            fail-on: "high"
+          - name: "Auto-detect scan"
+            ecosystem: ""
+            file: ""
+            fail-on: "medium"
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create test dependency files
+        run: |
+          # Create package.json with known vulnerable packages for testing
+          cat > package.json << 'EOF'
+          {
+            "name": "test-project",
+            "version": "1.0.0",
+            "dependencies": {
+              "lodash": "4.17.19",
+              "axios": "0.21.1",
+              "express": "4.17.1"
+            }
+          }
+          EOF
+          
+          # Create requirements.txt with known vulnerable packages
+          cat > requirements.txt << 'EOF'
+          django==2.2.0
+          requests==2.20.0
+          pillow==6.2.0
+          EOF
+          
+          # Create pom.xml for Maven testing
+          cat > pom.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.example</groupId>
+            <artifactId>test-project</artifactId>
+            <version>1.0.0</version>
+            <dependencies>
+              <dependency>
+                <groupId>org.apache.struts</groupId>
+                <artifactId>struts2-core</artifactId>
+                <version>2.3.20</version>
+              </dependency>
+            </dependencies>
+          </project>
+          EOF
+      
+      - name: Test Vulnify Action - ${{ matrix.test-case.name }}
+        id: vulnify-test
+        uses: ./
+        continue-on-error: true
+        with:
+          ecosystem: ${{ matrix.test-case.ecosystem }}
+          file: ${{ matrix.test-case.file }}
+          fail-on: ${{ matrix.test-case.fail-on }}
+          output: 'table'
+          generate-report: true
+          report-filename: 'test-report-${{ strategy.job-index }}.json'
+          timeout: '45000'
+      
+      - name: Display test results
+        run: |
+          echo "## Test Results for: ${{ matrix.test-case.name }}"
+          echo "Vulnerabilities found: ${{ steps.vulnify-test.outputs.vulnerabilities-found }}"
+          echo "Critical: ${{ steps.vulnify-test.outputs.critical-count }}"
+          echo "High: ${{ steps.vulnify-test.outputs.high-count }}"
+          echo "Medium: ${{ steps.vulnify-test.outputs.medium-count }}"
+          echo "Low: ${{ steps.vulnify-test.outputs.low-count }}"
+          echo "Scan result: ${{ steps.vulnify-test.outputs.scan-result }}"
+          echo "Report path: ${{ steps.vulnify-test.outputs.report-path }}"
+      
+      - name: Verify report generation
+        run: |
+          if [ -f "test-report-${{ strategy.job-index }}.json" ]; then
+            echo "✅ Report file generated successfully"
+            echo "Report size: $(wc -c < test-report-${{ strategy.job-index }}.json) bytes"
+            echo "Report preview:"
+            head -20 "test-report-${{ strategy.job-index }}.json"
+          else
+            echo "❌ Report file not found"
+            ls -la
+          fi
+      
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnify-test-reports-${{ strategy.job-index }}
+          path: |
+            test-report-*.json
+            vulnify-report.json
+          retention-days: 7
+
+  test-different-fail-conditions:
+    runs-on: ubuntu-latest
+    name: Test Different Fail Conditions
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create vulnerable package.json
+        run: |
+          cat > package.json << 'EOF'
+          {
+            "name": "vulnerable-test",
+            "version": "1.0.0",
+            "dependencies": {
+              "lodash": "4.17.19"
+            }
+          }
+          EOF
+      
+      - name: Test fail-on critical (should pass)
+        uses: ./
+        with:
+          fail-on: 'critical'
+          output: 'summary'
+      
+      - name: Test fail-on any (should fail)
+        uses: ./
+        continue-on-error: true
+        with:
+          fail-on: 'any'
+          output: 'json'
+
+  test-with-api-key:
+    runs-on: ubuntu-latest
+    name: Test with API Key
+    if: github.event_name != 'pull_request' # Only run on push/manual
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create test package.json
+        run: |
+          cat > package.json << 'EOF'
+          {
+            "name": "api-key-test",
+            "version": "1.0.0",
+            "dependencies": {
+              "express": "4.17.1"
+            }
+          }
+          EOF
+      
+      - name: Test with API key
+        uses: ./
+        with:
+          api-key: ${{ secrets.VULNIFY_API_KEY }}
+          fail-on: 'high'
+          timeout: '60000'
+
+  test-working-directory:
+    runs-on: ubuntu-latest
+    name: Test Working Directory
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create subdirectory with dependencies
+        run: |
+          mkdir -p frontend backend
+          
+          cat > frontend/package.json << 'EOF'
+          {
+            "name": "frontend-app",
+            "version": "1.0.0",
+            "dependencies": {
+              "react": "17.0.2",
+              "lodash": "4.17.19"
+            }
+          }
+          EOF
+          
+          cat > backend/requirements.txt << 'EOF'
+          django==2.2.0
+          requests==2.20.0
+          EOF
+      
+      - name: Test frontend scan
+        uses: ./
+        with:
+          working-directory: './frontend'
+          ecosystem: 'npm'
+          fail-on: 'critical'
+      
+      - name: Test backend scan
+        uses: ./
+        with:
+          working-directory: './backend'
+          ecosystem: 'pypi'
+          fail-on: 'critical'
+
+  integration-test:
+    runs-on: ubuntu-latest
+    name: Integration Test with Real Project
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Test on actual CLI project
+        uses: ./
+        with:
+          file: 'package.json'
+          ecosystem: 'npm'
+          fail-on: 'critical'
+          generate-report: true
+          report-filename: 'cli-security-report.json'
+      
+      - name: Validate CLI scan results
+        run: |
+          if [ -f "cli-security-report.json" ]; then
+            echo "✅ CLI project scan completed successfully"
+            
+            # Parse and display key metrics
+            if command -v jq &> /dev/null; then
+              echo "Project dependencies scanned: $(jq -r '.results.total_dependencies // .total_dependencies // "unknown"' cli-security-report.json)"
+              echo "Vulnerabilities found: $(jq -r '.results.vulnerabilities_found // .vulnerabilities_found // "unknown"' cli-security-report.json)"
+            fi
+          else
+            echo "❌ CLI project scan failed"
+            exit 1
+          fi
+      
+      - name: Upload CLI scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-security-report
+          path: cli-security-report.json
+
