@@ -1,6 +1,12 @@
 name: Vulnify Security Scan
 
 on:
+  workflow_call:
+    inputs:
+      fail_on:
+        required: false
+        default: any
+        type: string
   pull_request:
   push:
     branches: [ main, master ]
