@@ -1,0 +1,85 @@
+name: 'Vulnify Security Scanner'
+description: 'Scan your project dependencies for security vulnerabilities using Vulnify SCA - similar to Snyk CLI'
+author: 'Vulnify Team'
+
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  file:
+    description: 'Path to dependency file (package.json, requirements.txt, etc.)'
+    required: false
+    default: ''
+  
+  ecosystem:
+    description: 'Force specific ecosystem (npm, pypi, maven, nuget, rubygems, composer, go, cargo)'
+    required: false
+    default: ''
+  
+  output:
+    description: 'Output format (table, json, summary)'
+    required: false
+    default: 'table'
+  
+  severity:
+    description: 'Filter by severity level (critical, high, medium, low)'
+    required: false
+    default: ''
+  
+  api-key:
+    description: 'Vulnify API key for increased rate limits'
+    required: false
+    default: ''
+  
+  timeout:
+    description: 'Request timeout in milliseconds'
+    required: false
+    default: '30000'
+  
+  fail-on:
+    description: 'Fail the build on vulnerabilities (critical, high, medium, low, any)'
+    required: false
+    default: 'high'
+  
+  working-directory:
+    description: 'Working directory to run the scan'
+    required: false
+    default: '.'
+  
+  generate-report:
+    description: 'Generate JSON report file'
+    required: false
+    default: 'true'
+  
+  report-filename:
+    description: 'Name of the generated report file'
+    required: false
+    default: 'vulnify-report.json'
+
+outputs:
+  vulnerabilities-found:
+    description: 'Total number of vulnerabilities found'
+  
+  critical-count:
+    description: 'Number of critical vulnerabilities'
+  
+  high-count:
+    description: 'Number of high severity vulnerabilities'
+  
+  medium-count:
+    description: 'Number of medium severity vulnerabilities'
+  
+  low-count:
+    description: 'Number of low severity vulnerabilities'
+  
+  report-path:
+    description: 'Path to the generated JSON report'
+  
+  scan-result:
+    description: 'Overall scan result (pass/fail)'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
