@@ -11,7 +11,6 @@ export interface CliOptions {
 export interface Config {
   api_key?: string;
   api_url: string;
-  mongo_api_url?: string;
   timeout: number;
   severity_threshold: 'critical' | 'high' | 'medium' | 'low';
   output_format: 'json' | 'table' | 'summary';

@@ -60,27 +60,27 @@ export class MongoApiClient {
     // MongoDB API interceptors
     this.client.interceptors.request.use(
       (config) => {
-        logger.debug(`MongoDB API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        logger.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
-        logger.error('MongoDB API Request Error:', error.message);
+        logger.error('API Request Error:', error.message);
         return Promise.reject(error);
       }
     );
 
     this.client.interceptors.response.use(
       (response) => {
-        logger.debug(`MongoDB API Response: ${response.status} ${response.statusText}`);
+        logger.debug(`API Response: ${response.status} ${response.statusText}`);
         return response;
       },
       (error) => {
         if (error.response) {
-          logger.error(`MongoDB API Error: ${error.response.status} ${error.response.statusText}`);
+          logger.error(`API Error: ${error.response.status} ${error.response.statusText}`);
         } else if (error.request) {
-          logger.error('MongoDB API Network Error:', error.message);
+          logger.error('API Network Error:', error.message);
         } else {
-          logger.error('MongoDB API Error:', error.message);
+          logger.error('API Error:', error.message);
         }
         return Promise.reject(error);
       }
@@ -121,39 +121,13 @@ export class MongoApiClient {
    */
   async analyze(request: AnalysisRequest): Promise<ApiResponse> {
     try {
-      logger.info('Starting MongoDB vulnerability analysis', {
-        ecosystem: request.ecosystem,
-        dependencies: request.dependencies.length,
-        mongoApiUrl: this.client.defaults.baseURL,
-        requestBody: {
-          ecosystem: request.ecosystem,
-          dependencies: request.dependencies.slice(0, 3) // Log first 3 deps for debugging
-        }
-      });
-
       const response = await this.client.post<ApiResponse>('/api/v1/analyze', request);
-      
-      logger.info('MongoDB analysis completed successfully', {
-        ecosystem: request.ecosystem,
-        dependencies: request.dependencies.length,
-        vulnerabilities: response.data.results?.vulnerabilities_found || 0,
-        source: 'mongodb'
-      });
-
       return response.data;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const statusCode = (error as any)?.response?.status;
       const responseData = (error as any)?.response?.data;
-      
-      logger.warn('MongoDB API failed, attempting fallback', {
-        error: errorMessage,
-        statusCode,
-        responseData,
-        ecosystem: request.ecosystem,
-        mongoApiUrl: this.client.defaults.baseURL
-      });
 
       // Try fallback API if available
       if (this.fallbackClient) {
@@ -197,24 +171,14 @@ export class MongoApiClient {
    */
   async autoAnalyze(request: AutoAnalysisRequest): Promise<ApiResponse> {
     try {
-      logger.info('Starting MongoDB auto-analysis', {
-        ecosystem: request.ecosystem,
-        fileSize: request.file_content.length
-      });
 
       const response = await this.client.post<ApiResponse>('/api/v1/analyze/auto', request);
-      
-      logger.info('MongoDB auto-analysis completed', {
-        ecosystem: request.ecosystem,
-        dependencies: response.data.results?.total_dependencies || 0,
-        vulnerabilities: response.data.results?.vulnerabilities_found || 0,
-        source: 'mongodb'
-      });
+
 
       return response.data;
 
     } catch (error) {
-      logger.warn('MongoDB auto-analysis failed, attempting fallback', {
+      logger.warn('Auto-analysis failed, attempting fallback', {
         error: error instanceof Error ? error.message : 'Unknown error',
         ecosystem: request.ecosystem
       });
@@ -246,89 +210,54 @@ export class MongoApiClient {
     }
   }
 
-  /**
-   * Get API statistics and health information
-   */
-  async getStats(): Promise<ApiStats> {
-    try {
-      const response = await this.client.get<ApiStats>('/api/v1/stats');
-      return response.data;
-    } catch (error) {
-      logger.error('Failed to get MongoDB API stats', {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Try fallback if available
-      if (this.fallbackClient) {
-        try {
-          const response = await this.fallbackClient.get<ApiStats>('/api/v1/stats');
-          return response.data;
-        } catch (fallbackError) {
-          logger.error('Failed to get fallback API stats', {
-            error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error'
-          });
-        }
-      }
-      
-      throw error;
-    }
+/**
+ * Get API information
+ */
+async getInfo(): Promise<ApiInfo> {
+  try {
+    const response = await this.client.request<ApiInfo>({
+      url: 'https://api-dev.vulnify.io/api/v1/info',
+      method: 'GET',
+      data: {} // força envio de JSON vazio
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
   }
+}
 
-  /**
-   * Get API information
-   */
-  async getInfo(): Promise<ApiInfo> {
-    try {
-      const response = await this.client.get<ApiInfo>('/api/v1/docs');
-      return response.data;
-    } catch (error) {
-      logger.error('Failed to get MongoDB API info', {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Try fallback if available
-      if (this.fallbackClient) {
-        try {
-          const response = await this.fallbackClient.get<ApiInfo>('/api/v1/docs');
-          return response.data;
-        } catch (fallbackError) {
-          logger.error('Failed to get fallback API info', {
-            error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error'
-          });
-        }
-      }
-      
-      throw error;
-    }
+/**
+ * Get API statistics and health information
+ */
+async getStats(): Promise<ApiStats> {
+  try {
+    const response = await this.client.request<ApiStats>({
+      url: '/stats',
+      method: 'GET',
+      data: {} // força envio de JSON vazio
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
   }
+}
 
-  /**
-   * Health check for MongoDB API
-   */
-  async healthCheck(): Promise<{ status: string; service: string; version: string }> {
-    try {
-      const response = await this.client.get('/api/v1/health');
-      return response.data;
-    } catch (error) {
-      logger.error('MongoDB API health check failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Try fallback if available
-      if (this.fallbackClient) {
-        try {
-          const response = await this.fallbackClient.get('/api/v1/health');
-          return response.data;
-        } catch (fallbackError) {
-          logger.error('Fallback API health check failed', {
-            error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error'
-          });
-        }
-      }
-      
-      throw error;
-    }
+/**
+ * Health check
+ */
+async healthCheck(): Promise<{ status: string; timestamp: string }> {
+  try {
+    const response = await this.client.request({
+      url: '/health',
+      method: 'GET',
+      data: {} // força envio de JSON vazio
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
   }
+}
+
 
   /**
    * Test connectivity to both MongoDB and fallback APIs

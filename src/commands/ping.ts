@@ -3,13 +3,13 @@ import { colors } from '../utils/colors';
 import { createSpinner } from '../utils/spinner';
 import { logger } from '../utils/logger';
 import { config } from '../utils/config';
-import { mongoApiClient } from '../services/mongoApi';
+import { ApiClient } from '../services/api';
 
 /**
  * Ping command to test API connectivity
  */
 export const pingCommand = new Command('ping')
-  .description('Test connectivity to vulnerability analysis APIs')
+  .description('Test connectivity to vulnerability analysis API')
   .option('--verbose', 'show detailed connection information')
   .action(async (options) => {
     console.log(colors.title('🏓 Vulnify API Connectivity Test'));
@@ -17,8 +17,7 @@ export const pingCommand = new Command('ping')
 
     if (options.verbose) {
       console.log(colors.muted('Configuration:'));
-      console.log(colors.muted(`  MongoDB API URL: ${config.getMongoApiUrl() || 'not set'}`));
-      console.log(colors.muted(`  Fallback API URL: ${config.getApiUrl()}`));
+      console.log(colors.muted(`  API URL: ${config.getApiUrl()}`));
       console.log(colors.muted(`  Timeout: ${config.getTimeout()}ms`));
       console.log('');
     }
@@ -27,72 +26,72 @@ export const pingCommand = new Command('ping')
     spinner.start();
 
     try {
-      // Test connectivity to both APIs
-      const connectivity = await mongoApiClient.testConnectivity();
+      // Test connectivity to API - simple HTTP check
+      const apiClient = new ApiClient();
+      const startTime = Date.now();
+      
+      // Try to make a simple request to test connectivity
+      // We'll catch the error but if we get a response (even an error), it means the API is reachable
+      try {
+        await apiClient.analyze({
+          ecosystem: 'npm',
+          dependencies: []
+        });
+      } catch (error) {
+        // If we get a validation error, it means the API is reachable
+        if (error instanceof Error && (
+          error.message.includes('dependencies') || 
+          error.message.includes('At least one dependency is required')
+        )) {
+          // This is expected - empty dependencies array causes validation error
+          // but it means the API is responding
+        } else {
+          throw error;
+        }
+      }
+      
+      const responseTime = Date.now() - startTime;
       
       spinner.stop();
       console.log('');
 
-      // Display MongoDB API results
-      console.log(colors.info('📡 MongoDB API Service:'));
-      if (connectivity.mongodb.available) {
-        console.log(colors.success(`  ✅ Available (${connectivity.mongodb.responseTime}ms)`));
-      } else {
-        console.log(colors.error(`  ❌ Unavailable: ${connectivity.mongodb.error}`));
-      }
-
-      // Display Fallback API results
-      console.log('');
-      console.log(colors.info('🔄 Fallback API Service:'));
-      if (connectivity.fallback.available) {
-        console.log(colors.success(`  ✅ Available (${connectivity.fallback.responseTime}ms)`));
-      } else {
-        console.log(colors.error(`  ❌ Unavailable: ${connectivity.fallback.error || 'Not configured'}`));
-      }
+      // Display API results
+      console.log(colors.info('📡 API Service:'));
+      console.log(colors.success(`  ✅ Available (${responseTime}ms)`));
 
       // Overall status
       console.log('');
-      if (connectivity.mongodb.available || connectivity.fallback.available) {
-        console.log(colors.success('🎉 At least one API service is available!'));
-        
-        if (connectivity.mongodb.available) {
-          console.log(colors.info('💡 MongoDB API will be used for faster analysis'));
-        } else {
-          console.log(colors.warning('⚠️  Using fallback API (may be slower)'));
-        }
-      } else {
-        console.log(colors.error('❌ No API services are available'));
-        console.log('');
-        console.log(colors.warning('💡 Troubleshooting tips:'));
-        console.log('  • Check your internet connection');
-        console.log('  • Verify API URLs are correct');
-        console.log('  • Check if services are running');
-        console.log('  • Try increasing timeout with --timeout option');
-      }
+      console.log(colors.success('🎉 API service is available!'));
+      console.log(colors.info('💡 Ready to analyze dependencies for vulnerabilities'));
 
-      // Show configuration help
-      if (!connectivity.mongodb.available && !connectivity.fallback.available) {
-        console.log('');
-        console.log(colors.info('🔧 Configuration:'));
-        console.log('  Set MongoDB API URL:');
-        console.log(colors.muted('    export VULNIFY_MONGO_API_URL="https://your-lambda-url"'));
-        console.log('  Set fallback API URL:');
-        console.log(colors.muted('    export VULNIFY_API_URL="https://api.vulnify.io"'));
-      }
-
-    } catch (error) {
-      spinner.stop();
       console.log('');
-      console.log(colors.error('❌ Connectivity test failed'));
-      console.log(colors.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      console.log(colors.muted('Use "vulnify test" to start analyzing your project'));
       
+    } catch (error) {
+      spinner.fail('❌ Connectivity test failed');
+      
+      console.log('');
+      console.log(colors.error('Error details:'));
+      if (error instanceof Error) {
+        console.log(colors.error(`  ${error.message}`));
+      } else {
+        console.log(colors.error('  Unknown error occurred'));
+      }
+
+      console.log('');
+      console.log(colors.warning('💡 Troubleshooting:'));
+      console.log('  • Check your internet connection');
+      console.log('  • Verify the API endpoint is accessible');
+      console.log('  • Try again in a few moments');
+      console.log('  • Use --verbose for more details');
+
       if (options.verbose) {
         logger.error('Ping command failed', {
           error: error instanceof Error ? error.message : 'Unknown error',
           stack: error instanceof Error ? error.stack : undefined
         });
       }
-      
+
       process.exit(1);
     }
   });
