@@ -64,7 +64,7 @@ export class ApiClient {
    */
   async analyze(request: AnalysisRequest): Promise<ApiResponse> {
     try {
-      const response: AxiosResponse<ApiResponse> = await this.client.post('/analyze', request);
+      const response: AxiosResponse<ApiResponse> = await this.client.post('api/v1/analyze', request);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -76,48 +76,61 @@ export class ApiClient {
    */
   async autoAnalyze(request: AutoAnalysisRequest): Promise<ApiResponse> {
     try {
-      const response: AxiosResponse<ApiResponse> = await this.client.post('/analyze/auto', request);
+      const response: AxiosResponse<ApiResponse> = await this.client.post('api/v1/analyze/auto', request);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
     }
   }
+/**
+ * Get API information
+ */
+async getInfo(): Promise<ApiInfo> {
+  try {
+    const response = await this.client.request<ApiInfo>({
+      url: '/api/v1/info',
+      method: 'GET',
+      data: {} // força envio de JSON vazio
+    });
+    return response.data;
+  } catch (error) {
+    throw this.handleError(error);
+  }
+}
 
-  /**
-   * Get API statistics
-   */
-  async getStats(): Promise<ApiStats> {
-    try {
-      const response: AxiosResponse<ApiStats> = await this.client.get('/analyze/stats');
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
+/**
+ * Get API statistics and health information
+ */
+async getStats(): Promise<ApiStats> {
+  try {
+    const response = await this.client.request<ApiStats>({
+      url: '/api/v1/stats',
+      method: 'GET',
+      data: {} // força envio de JSON vazio
+    });
+    return response.data;
+  } catch (error) {
+    throw this.handleError(error);
   }
+}
 
-  /**
-   * Get API information
-   */
-  async getInfo(): Promise<ApiInfo> {
-    try {
-      const response: AxiosResponse<ApiInfo> = await this.client.get('/info');
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
+/**
+ * Health check
+ */
+async healthCheck(): Promise<{ status: string; timestamp: string }> {
+  try {
+    const response = await this.client.request({
+      url: '/api/v1/health',
+      method: 'GET',
+      data: {} // força envio de JSON vazio
+    });
+    return response.data;
+  } catch (error) {
+    throw this.handleError(error);
   }
+}
 
-  /**
-   * Health check
-   */
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
-    try {
-      const response = await this.client.get('/health');
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
+
 
   /**
    * Handle API errors and convert to user-friendly messages

@@ -3,7 +3,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+reporter.ts.backup
 
+vulnify-report.json
 # Build outputs
 dist/
 build/

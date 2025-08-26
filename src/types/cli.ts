@@ -1,7 +1,7 @@
 export interface CliOptions {
   file?: string;
   ecosystem?: string;
-  output?: 'json' | 'table' | 'summary';
+  output?: 'json' | 'table' | 'summary' | 'enhanced';
   severity?: 'critical' | 'high' | 'medium' | 'low';
   apiKey?: string;
   timeout?: number;
@@ -98,5 +98,30 @@ export interface EcosystemConfig {
     config: string[];
   };
   parser: string;
+}
+
+
+export interface ProjectStructure {
+  isMonorepo: boolean;
+  rootEcosystem: string | null;
+  subprojects: Array<{
+    path: string;
+    ecosystem: string;
+    files: number;
+  }>;
+  totalFiles: number;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  message?: string;
+  suggestions?: string[];
+}
+
+export interface EnhancedCliOptions extends CliOptions {
+  verbose?: boolean;
+  maxDepth?: number;
+  includeSubdirs?: boolean;
+  format?: 'enhanced' | 'table' | 'json' | 'summary';
 }
 
