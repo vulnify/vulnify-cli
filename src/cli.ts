@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { testCommand } from './commands/test';
 import { helpCommand } from './commands/help';
 import { infoCommand } from './commands/info';
+import { pingCommand } from './commands/ping';
 import { colors } from './utils/colors';
 
 const program = new Command();
@@ -12,10 +13,11 @@ const program = new Command();
 program
   .name('vulnify')
   .description('CLI tool for vulnerability analysis using Vulnify SCA API')
-  .version('1.0.0', '-v, --version', 'display version number');
+  .version('1.0.2', '-v, --version', 'display version number');
 
 // Add commands
 program.addCommand(testCommand);
+program.addCommand(pingCommand);
 program.addCommand(helpCommand);
 program.addCommand(infoCommand);
 
@@ -26,6 +28,7 @@ program.on('--help', () => {
   console.log('  $ vulnify test                    # Analyze current project');
   console.log('  $ vulnify test --file package.json # Analyze specific file');
   console.log('  $ vulnify test --ecosystem npm     # Force ecosystem detection');
+  console.log('  $ vulnify ping                     # Test API connectivity');
   console.log('  $ vulnify info                     # Show API information');
   console.log('');
   console.log(colors.muted('For more information, visit: https://docs.vulnify.io'));

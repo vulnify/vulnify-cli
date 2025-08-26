@@ -1,6 +1,6 @@
 {
   "name": "vulnify",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "CLI tool for vulnerability analysis using Vulnify SCA API - similar to Snyk CLI",
   "main": "dist/index.js",
   "bin": {

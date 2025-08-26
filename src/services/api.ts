@@ -64,7 +64,7 @@ export class ApiClient {
    */
   async analyze(request: AnalysisRequest): Promise<ApiResponse> {
     try {
-      const response: AxiosResponse<ApiResponse> = await this.client.post('/analyze', request);
+      const response: AxiosResponse<ApiResponse> = await this.client.post('api/v1/analyze', request);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -76,7 +76,7 @@ export class ApiClient {
    */
   async autoAnalyze(request: AutoAnalysisRequest): Promise<ApiResponse> {
     try {
-      const response: AxiosResponse<ApiResponse> = await this.client.post('/analyze/auto', request);
+      const response: AxiosResponse<ApiResponse> = await this.client.post('api/v1/analyze/auto', request);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -88,7 +88,7 @@ export class ApiClient {
    */
   async getStats(): Promise<ApiStats> {
     try {
-      const response: AxiosResponse<ApiStats> = await this.client.get('/analyze/stats');
+      const response: AxiosResponse<ApiStats> = await this.client.get('api/v1/analyze/stats');
       return response.data;
     } catch (error) {
       throw this.handleError(error);

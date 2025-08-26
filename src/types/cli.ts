@@ -1,7 +1,7 @@
 export interface CliOptions {
   file?: string;
   ecosystem?: string;
-  output?: 'json' | 'table' | 'summary';
+  output?: 'json' | 'table' | 'summary' | 'enhanced';
   severity?: 'critical' | 'high' | 'medium' | 'low';
   apiKey?: string;
   timeout?: number;
@@ -11,6 +11,7 @@ export interface CliOptions {
 export interface Config {
   api_key?: string;
   api_url: string;
+  mongo_api_url?: string;
   timeout: number;
   severity_threshold: 'critical' | 'high' | 'medium' | 'low';
   output_format: 'json' | 'table' | 'summary';
@@ -98,5 +99,30 @@ export interface EcosystemConfig {
     config: string[];
   };
   parser: string;
+}
+
+
+export interface ProjectStructure {
+  isMonorepo: boolean;
+  rootEcosystem: string | null;
+  subprojects: Array<{
+    path: string;
+    ecosystem: string;
+    files: number;
+  }>;
+  totalFiles: number;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  message?: string;
+  suggestions?: string[];
+}
+
+export interface EnhancedCliOptions extends CliOptions {
+  verbose?: boolean;
+  maxDepth?: number;
+  includeSubdirs?: boolean;
+  format?: 'enhanced' | 'table' | 'json' | 'summary';
 }
 

@@ -58,7 +58,8 @@ export interface AnalysisRequest {
 }
 
 export interface AutoAnalysisRequest {
-  content: string;
+  ecosystem: string;
+  file_content: string;
   filename?: string;
 }
 

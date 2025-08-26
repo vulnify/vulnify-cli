@@ -3,7 +3,8 @@ import * as path from 'path';
 import { Config } from '../types';
 
 const DEFAULT_CONFIG: Config = {
-  api_url: 'https://api-dev.vulnify.io/api/v1',
+  api_url: 'https://api-dev.vulnify.io/',
+  mongo_api_url: 'https://api-dev.vulnify.io/',
   timeout: 30000,
   severity_threshold: 'medium',
   output_format: 'table',
@@ -57,6 +58,10 @@ export class ConfigManager {
       this.config.api_url = process.env.VULNIFY_API_URL;
     }
 
+    if (process.env.VULNIFY_MONGO_API_URL) {
+      this.config.mongo_api_url = process.env.VULNIFY_MONGO_API_URL;
+    }
+
     if (process.env.VULNIFY_TIMEOUT) {
       const timeout = parseInt(process.env.VULNIFY_TIMEOUT, 10);
       if (!isNaN(timeout)) {
@@ -82,6 +87,10 @@ export class ConfigManager {
 
   public getApiUrl(): string {
     return this.config.api_url;
+  }
+
+  public getMongoApiUrl(): string | undefined {
+    return this.config.mongo_api_url;
   }
 
   public getApiKey(): string | undefined {

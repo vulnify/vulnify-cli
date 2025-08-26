@@ -6,6 +6,12 @@ import { Report, ReportMetadata, Recommendation } from '../types/cli';
 import { colors, formatSeverity, formatCount } from '../utils/colors';
 import { logger } from '../utils/logger';
 
+export interface EnhancedDisplayOptions {
+  ecosystem?: string;
+  projectPath?: string;
+  verbose?: boolean;
+}
+
 export class ReportGenerator {
   /**
    * Generate and save JSON report
@@ -17,7 +23,7 @@ export class ReportGenerator {
   ): Promise<string> {
     const report: Report = {
       metadata: {
-        cli_version: '1.0.0',
+        cli_version: '1.0.2',
         scan_timestamp: new Date().toISOString(),
         request_id: results.metadata.request_id,
         project_path: process.cwd(),
@@ -60,7 +66,42 @@ export class ReportGenerator {
   }
 
   /**
-   * Display results in table format
+   * Display results in enhanced format (like the image)
+   */
+  displayEnhancedResults(results: AnalysisResults, options: EnhancedDisplayOptions = {}): void {
+    console.log(colors.title('🔍 Vulnify CLI'));
+    console.log('');
+
+    // Project info
+    if (options.ecosystem && options.projectPath) {
+      console.log(`📦 Found ${results.total_dependencies} dependencies (${options.ecosystem} ecosystem)`);
+    } else {
+      console.log(`📦 Found ${results.total_dependencies} dependencies`);
+    }
+
+    console.log(`🔍 Analyzing vulnerabilities... (${results.scan_time})`);
+    
+    if (results.vulnerabilities_found > 0) {
+      console.log(`⚠️  Found ${results.vulnerabilities_found} vulnerabilities:`);
+      console.log('');
+
+      // Display vulnerabilities with emoji indicators
+      const vulnerabilityList = this.getVulnerabilityList(results);
+      vulnerabilityList.forEach(vuln => {
+        const emoji = this.getSeverityEmoji(vuln.severity);
+        const severityText = this.getSeverityText(vuln.severity);
+        console.log(`${emoji} ${vuln.count} ${severityText}: ${vuln.title}`);
+      });
+    } else {
+      console.log('✅ No vulnerabilities found!');
+    }
+
+    console.log('');
+    console.log(`📄 Report saved to vulnify-report.json`);
+  }
+
+  /**
+   * Display results in table format (FIXED - no more blank tables)
    */
   displayTableResults(results: AnalysisResults): void {
     console.log('');
@@ -70,7 +111,7 @@ export class ReportGenerator {
     // Summary
     this.displaySummary(results);
 
-    // Vulnerabilities table
+    // Vulnerabilities table - FIXED
     if (results.vulnerabilities_found > 0) {
       console.log('');
       console.log(colors.subtitle('🔍 Detected Vulnerabilities:'));
@@ -89,22 +130,30 @@ export class ReportGenerator {
         wordWrap: true
       });
 
+      // FIXED: Check if we actually have vulnerabilities to display
+      let hasVulnerabilities = false;
+      
       for (const dep of results.dependencies) {
-        if (dep.vulnerabilities.length > 0) {
+        if (dep.vulnerabilities && dep.vulnerabilities.length > 0) {
+          hasVulnerabilities = true;
           for (const vuln of dep.vulnerabilities) {
             table.push([
               colors.highlight(dep.name),
               colors.muted(dep.version),
-              vuln.title,
+              vuln.title || vuln.id || 'Unknown vulnerability',
               formatSeverity(vuln.severity),
               (vuln.cvss_score && typeof vuln.cvss_score === 'number') ? vuln.cvss_score.toFixed(1) : 'N/A',
-              vuln.fixed_in ? vuln.fixed_in.join(', ') : 'N/A'
+              vuln.fixed_in && vuln.fixed_in.length > 0 ? vuln.fixed_in.join(', ') : 'N/A'
             ]);
           }
         }
       }
 
-      console.log(table.toString());
+      if (hasVulnerabilities) {
+        console.log(table.toString());
+      } else {
+        console.log(colors.muted('No vulnerability details available to display.'));
+      }
     }
 
     // Recommendations
@@ -137,7 +186,9 @@ export class ReportGenerator {
       console.log('');
       console.log(colors.subtitle('📦 Affected Packages:'));
       
-      const affectedPackages = results.dependencies.filter(dep => dep.vulnerabilities.length > 0);
+      const affectedPackages = results.dependencies.filter(dep => 
+        dep.vulnerabilities && dep.vulnerabilities.length > 0
+      );
       
       for (const dep of affectedPackages) {
         const severities = dep.vulnerabilities.map(v => v.severity);
@@ -209,7 +260,7 @@ export class ReportGenerator {
     const recommendations: Recommendation[] = [];
 
     for (const dep of results.dependencies) {
-      if (dep.vulnerabilities.length > 0) {
+      if (dep.vulnerabilities && dep.vulnerabilities.length > 0) {
         // Find the best version that fixes vulnerabilities
         const allFixedVersions = dep.vulnerabilities
           .flatMap(v => v.fixed_in || [])
@@ -246,6 +297,73 @@ export class ReportGenerator {
     }
 
     return recommendations;
+  }
+
+  /**
+   * Get vulnerability list for enhanced display
+   */
+  private getVulnerabilityList(results: AnalysisResults): Array<{severity: string, count: number, title: string}> {
+    const vulnerabilities: Array<{severity: string, count: number, title: string}> = [];
+    
+    if (results.summary.critical > 0) {
+      vulnerabilities.push({
+        severity: 'critical',
+        count: results.summary.critical,
+        title: 'Critical'
+      });
+    }
+    
+    if (results.summary.high > 0) {
+      vulnerabilities.push({
+        severity: 'high',
+        count: results.summary.high,
+        title: 'High'
+      });
+    }
+    
+    if (results.summary.medium > 0) {
+      vulnerabilities.push({
+        severity: 'medium',
+        count: results.summary.medium,
+        title: 'Medium'
+      });
+    }
+    
+    if (results.summary.low > 0) {
+      vulnerabilities.push({
+        severity: 'low',
+        count: results.summary.low,
+        title: 'Low'
+      });
+    }
+
+    return vulnerabilities;
+  }
+
+  /**
+   * Get emoji for severity level
+   */
+  private getSeverityEmoji(severity: string): string {
+    switch (severity.toLowerCase()) {
+      case 'critical': return '🔴';
+      case 'high': return '🟠';
+      case 'medium': return '🟡';
+      case 'low': return '🟢';
+      default: return '⚪';
+    }
+  }
+
+  /**
+   * Get text for severity level
+   */
+  private getSeverityText(severity: string): string {
+    switch (severity.toLowerCase()) {
+      case 'critical': return 'Critical';
+      case 'high': return 'High';
+      case 'medium': return 'Medium';
+      case 'low': return 'Low';
+      default: return 'Unknown';
+    }
   }
 
   /**
